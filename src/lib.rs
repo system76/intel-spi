@@ -7,6 +7,12 @@ mod io;
 pub use self::mmio::Mmio;
 mod mmio;
 
+pub trait Spi {
+    fn len(&mut self) -> usize;
+
+    fn read(&mut self, address: usize, buf: &mut [u8]) -> usize;
+}
+
 #[repr(packed)]
 pub struct SpiCnl {
     bfpreg: Mmio<u32>,
@@ -30,6 +36,16 @@ pub struct SpiCnl {
     ptinx: Mmio<u32>,
     ptdata: Mmio<u32>,
     sbrs: Mmio<u32>,
+}
+
+impl Spi for SpiCnl {
+    fn len(&mut self) -> usize {
+        0
+    }
+
+    fn read(&mut self, address: usize, buf: &mut [u8]) -> usize {
+        0
+    }
 }
 
 #[cfg(test)]
