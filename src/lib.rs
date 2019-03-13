@@ -1,16 +1,45 @@
 #![no_std]
 #![feature(core_intrinsics)]
 
+#[macro_use]
+extern crate bitflags;
+
 pub use self::io::Io;
 mod io;
 
 pub use self::mmio::Mmio;
 mod mmio;
 
-pub trait Spi {
-    fn len(&mut self) -> usize;
+#[derive(Debug)]
+pub enum SpiError {
+    Access,
+    Cycle,
+    Register,
+}
 
-    fn read(&mut self, address: usize, buf: &mut [u8]) -> usize;
+pub trait Spi {
+    fn len(&mut self) -> Result<usize, SpiError>;
+
+    fn read(&mut self, address: usize, buf: &mut [u8]) -> Result<usize, SpiError>;
+}
+
+bitflags! {
+    pub struct HsfStsCtl: u32 {
+        const FDONE = 1 << 0;
+        const FCERR = 1 << 1;
+        const H_AEL = 1 << 2;
+        const H_SCIP = 1 << 5;
+        const WRSDIS = 1 << 11;
+        const PRR34_LOCKDN = 1 << 12;
+        const FDOPSS = 1 << 13;
+        const FDV = 1 << 14;
+        const FLOCKDN = 1 << 15;
+        const FGO = 1 << 16;
+        const FCYCLE = 0b1111 << 17;
+        const WET = 1 << 21;
+        const FDBC = 0b111111 << 24;
+        const FSMIE = 1 << 31;
+    }
 }
 
 #[repr(packed)]
@@ -38,13 +67,25 @@ pub struct SpiCnl {
     sbrs: Mmio<u32>,
 }
 
-impl Spi for SpiCnl {
-    fn len(&mut self) -> usize {
-        0
+impl SpiCnl {        
+    pub fn hsfsts_ctl(&self) -> Result<HsfStsCtl, SpiError> {
+        HsfStsCtl::from_bits(self.hsfsts_ctl.read()).ok_or(SpiError::Register)
     }
 
-    fn read(&mut self, address: usize, buf: &mut [u8]) -> usize {
-        0
+    pub fn wait(&mut self) -> Result<(), SpiError> {
+        // Wait for cycle in progress
+        while self.hsfsts_ctl()?.contains(HsfStsCtl::H_SCIP) {}
+        Ok(())
+    }
+}
+
+impl Spi for SpiCnl {
+    fn len(&mut self) -> Result<usize, SpiError> {
+        Ok(0)
+    }
+
+    fn read(&mut self, address: usize, buf: &mut [u8]) -> Result<usize, SpiError> {
+        Ok(0)
     }
 }
 

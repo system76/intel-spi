@@ -5,3 +5,4 @@ authors = ["Jeremy Soller <jeremy@system76.com>"]
 edition = "2018"
 
 [dependencies]
+bitflags = "1.0.4"
