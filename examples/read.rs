@@ -27,7 +27,16 @@ unsafe fn get_spi() -> &'static mut SpiCnl {
         panic!("failed to map /dev/mem");
     }
 
+    libc::close(fd);
+
     &mut *(p as *mut SpiCnl)
+}
+
+unsafe fn release_spi(spi: &'static mut SpiCnl) {
+    libc::munmap(
+        spi as *mut SpiCnl as *mut libc::c_void,
+        mem::size_of::<SpiCnl>()
+    );
 }
 
 fn main() {
@@ -40,10 +49,13 @@ fn main() {
     while data.len() < len {
         let mut buf = [0; 65536];
         let read = spi.read(data.len(), &mut buf).unwrap();
-        data.extend_from_slice(&buf);
+        data.extend_from_slice(&buf[..read]);
         eprint!("\rSPI READ: {} KB", data.len() / 1024);
-
     }
 
     eprintln!("");
+
+    fs::write("read.rom", &data).unwrap();
+
+    unsafe { release_spi(spi); }
 }
