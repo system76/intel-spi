@@ -4,7 +4,7 @@
 #[macro_use]
 extern crate bitflags;
 
-use core::mem;
+use core::{cmp, mem};
 
 pub use self::io::Io;
 mod io;
@@ -26,6 +26,8 @@ pub trait Spi {
     fn len(&mut self) -> Result<usize, SpiError>;
 
     fn read(&mut self, address: usize, buf: &mut [u8]) -> Result<usize, SpiError>;
+
+    fn write(&mut self, address: usize, buf: &[u8]) -> Result<usize, SpiError>;
 }
 
 bitflags! {
@@ -92,8 +94,7 @@ impl HsfStsCtl {
 
     fn set_cycle(&mut self, value: HsfStsCtlCycle) {
         *self = (*self & !Self::FCYCLE) | (
-            Self::from_bits_truncate(value as u32) &
-            Self::FCYCLE
+            Self::from_bits_truncate(value as u32)
         );
     }
 
@@ -103,8 +104,9 @@ impl HsfStsCtl {
 
     fn set_count(&mut self, value: u8) {
         *self = (*self & !Self::FDBC) | (
-            Self::from_bits_truncate((value.saturating_sub(1) as u32) << 24) &
-            Self::FDBC
+            Self::from_bits_truncate(
+                (cmp::max(value, 64).saturating_sub(1) as u32) << 24
+            )
         );
     }
 }
@@ -233,6 +235,7 @@ impl Spi for SpiCnl {
             }
 
             hsfsts_ctl.set_cycle(HsfStsCtlCycle::Read);
+            hsfsts_ctl.set_count(chunk.len() as u8);
             hsfsts_ctl.insert(HsfStsCtl::FGO);
 
             // Start command
@@ -260,11 +263,64 @@ impl Spi for SpiCnl {
             }
 
             for (i, dword) in chunk.chunks_mut(4).enumerate() {
-                let mut data = self.fdata[i].read();
-                for byte in dword.iter_mut() {
-                    *byte = data as u8;
-                    data = data >> 8;
+                let data = self.fdata[i].read();
+                for (j, byte) in dword.iter_mut().enumerate() {
+                    *byte = (data >> (j * 8)) as u8;
                 }
+            }
+
+            count += chunk.len()
+        }
+        Ok(count)
+    }
+
+    fn write(&mut self, address: usize, buf: &[u8]) -> Result<usize, SpiError> {
+        let mut count = 0;
+        for chunk in buf.chunks(64) {
+            let mut hsfsts_ctl;
+
+            // Wait for other transactions
+            loop {
+                hsfsts_ctl = self.hsfsts_ctl();
+                if ! hsfsts_ctl.contains(HsfStsCtl::H_SCIP) {
+                    break;
+                }
+            }
+
+            for (i, dword) in chunk.chunks(4).enumerate() {
+                let mut data = 0;
+                for (j, byte) in dword.iter().enumerate() {
+                    data |= (*byte as u32) << (j * 8);
+                }
+                self.fdata[i].write(data);
+            }
+
+            hsfsts_ctl.set_cycle(HsfStsCtlCycle::Write);
+            hsfsts_ctl.set_count(chunk.len() as u8);
+            hsfsts_ctl.insert(HsfStsCtl::FGO);
+
+            // Start command
+            self.faddr.write((address + count) as u32);
+            self.set_hsfsts_ctl(hsfsts_ctl);
+
+            // Wait for command to finish
+            loop {
+                hsfsts_ctl = self.hsfsts_ctl();
+                if ! hsfsts_ctl.contains(HsfStsCtl::H_SCIP) {
+                    break;
+                }
+            }
+
+            if hsfsts_ctl.contains(HsfStsCtl::FCERR) {
+                return Err(SpiError::Cycle);
+            }
+
+            if hsfsts_ctl.contains(HsfStsCtl::H_AEL) {
+                return Err(SpiError::Access);
+            }
+
+            if ! hsfsts_ctl.contains(HsfStsCtl::FDONE) {
+                return Err(SpiError::Register);
             }
 
             count += chunk.len()
