@@ -39,9 +39,13 @@ fn main() {
     let len = spi.len().unwrap();
     println!("SPI ROM: {} KB", len / 1024);
 
-    let mut data = vec![0; len];
-    let read = spi.read(0, &mut data).unwrap();
-    println!("SPI READ: {} KB", read / 1024);
+    let mut data = Vec::with_capacity(len);
+    while data.len() < len {
+        let mut buf = [0; 4096];
+        let read = spi.read(data.len(), &mut buf).unwrap();
+        data.extend_from_slice(&buf);
+        print!("\rSPI READ: {} KB", data.len() / 1024);
+    }
 
-    fs::write("dump.rom", &data).unwrap();
+    println!("");
 }
