@@ -27,6 +27,8 @@ pub trait Spi {
 
     fn read(&mut self, address: usize, buf: &mut [u8]) -> Result<usize, SpiError>;
 
+    fn erase(&mut self, address: usize) -> Result<(), SpiError>;
+
     fn write(&mut self, address: usize, buf: &[u8]) -> Result<usize, SpiError>;
 }
 
@@ -245,21 +247,14 @@ impl Spi for SpiCnl {
             // Wait for command to finish
             loop {
                 hsfsts_ctl = self.hsfsts_ctl();
-                if ! hsfsts_ctl.contains(HsfStsCtl::H_SCIP) {
+
+                if hsfsts_ctl.contains(HsfStsCtl::FCERR) {
+                    return Err(SpiError::Cycle);
+                }
+
+                if hsfsts_ctl.contains(HsfStsCtl::FDONE) {
                     break;
                 }
-            }
-
-            if hsfsts_ctl.contains(HsfStsCtl::FCERR) {
-                return Err(SpiError::Cycle);
-            }
-
-            if hsfsts_ctl.contains(HsfStsCtl::H_AEL) {
-                return Err(SpiError::Access);
-            }
-
-            if ! hsfsts_ctl.contains(HsfStsCtl::FDONE) {
-                return Err(SpiError::Register);
             }
 
             for (i, dword) in chunk.chunks_mut(4).enumerate() {
@@ -272,6 +267,40 @@ impl Spi for SpiCnl {
             count += chunk.len()
         }
         Ok(count)
+    }
+
+    fn erase(&mut self, address: usize) -> Result<(), SpiError> {
+        let mut hsfsts_ctl;
+
+        // Wait for other transactions
+        loop {
+            hsfsts_ctl = self.hsfsts_ctl();
+            if ! hsfsts_ctl.contains(HsfStsCtl::H_SCIP) {
+                break;
+            }
+        }
+
+        hsfsts_ctl.set_cycle(HsfStsCtlCycle::BlockErase);
+        hsfsts_ctl.insert(HsfStsCtl::FGO);
+
+        // Start command
+        self.faddr.write(address as u32);
+        self.set_hsfsts_ctl(hsfsts_ctl);
+
+        // Wait for command to finish
+        loop {
+            hsfsts_ctl = self.hsfsts_ctl();
+
+            if hsfsts_ctl.contains(HsfStsCtl::FCERR) {
+                return Err(SpiError::Cycle);
+            }
+
+            if hsfsts_ctl.contains(HsfStsCtl::FDONE) {
+                break;
+            }
+        }
+
+        Ok(())
     }
 
     fn write(&mut self, address: usize, buf: &[u8]) -> Result<usize, SpiError> {
@@ -287,6 +316,11 @@ impl Spi for SpiCnl {
                 }
             }
 
+            hsfsts_ctl.set_cycle(HsfStsCtlCycle::Write);
+            hsfsts_ctl.set_count(chunk.len() as u8);
+            hsfsts_ctl.insert(HsfStsCtl::FGO);
+
+            // Fill data
             for (i, dword) in chunk.chunks(4).enumerate() {
                 let mut data = 0;
                 for (j, byte) in dword.iter().enumerate() {
@@ -295,10 +329,6 @@ impl Spi for SpiCnl {
                 self.fdata[i].write(data);
             }
 
-            hsfsts_ctl.set_cycle(HsfStsCtlCycle::Write);
-            hsfsts_ctl.set_count(chunk.len() as u8);
-            hsfsts_ctl.insert(HsfStsCtl::FGO);
-
             // Start command
             self.faddr.write((address + count) as u32);
             self.set_hsfsts_ctl(hsfsts_ctl);
@@ -306,21 +336,14 @@ impl Spi for SpiCnl {
             // Wait for command to finish
             loop {
                 hsfsts_ctl = self.hsfsts_ctl();
-                if ! hsfsts_ctl.contains(HsfStsCtl::H_SCIP) {
+
+                if hsfsts_ctl.contains(HsfStsCtl::FCERR) {
+                    return Err(SpiError::Cycle);
+                }
+
+                if hsfsts_ctl.contains(HsfStsCtl::FDONE) {
                     break;
                 }
-            }
-
-            if hsfsts_ctl.contains(HsfStsCtl::FCERR) {
-                return Err(SpiError::Cycle);
-            }
-
-            if hsfsts_ctl.contains(HsfStsCtl::H_AEL) {
-                return Err(SpiError::Access);
-            }
-
-            if ! hsfsts_ctl.contains(HsfStsCtl::FDONE) {
-                return Err(SpiError::Register);
             }
 
             count += chunk.len()

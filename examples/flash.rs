@@ -42,6 +42,8 @@ unsafe fn release_spi(spi: &'static mut SpiCnl) {
 fn main() {
     let spi = unsafe { get_spi() };
 
+    eprintln!("SPI HSFSTS_CTL: {:?}", spi.hsfsts_ctl());
+
     let len = spi.len().unwrap();
     eprintln!("SPI ROM: {} KB", len / 1024);
 
@@ -52,7 +54,7 @@ fn main() {
 
     let mut data = Vec::with_capacity(len);
     while data.len() < len {
-        let mut buf = [0; 65536];
+        let mut buf = [0; 4096];
         let read = spi.read(data.len(), &mut buf).unwrap();
         data.extend_from_slice(&buf[..read]);
         eprint!("\rSPI READ: {} KB", data.len() / 1024);
@@ -63,7 +65,7 @@ fn main() {
     //TODO: Get from descriptor somehow
     let erase_byte = 0xFF;
     let mut i = 0;
-    for (chunk, new_chunk) in data.chunks(65536).zip(new.chunks(65536)) {
+    for (chunk, new_chunk) in data.chunks(4096).zip(new.chunks(4096)) {
         // Data matches, meaning sector can be skipped
         let mut matching = true;
         // Data is erased, meaning sector can be erased instead of written
@@ -79,13 +81,11 @@ fn main() {
 
         eprint!("\rSPI WRITE: {} KB", data.len() / 1024);
 
-        if matching {
-            // Skip
-        } else if erased {
-            //TODO: Use erase
-            spi.write(i, &new_chunk).unwrap();
-        } else {
-            spi.write(i, &new_chunk).unwrap();
+        if ! matching {
+            spi.erase(i).unwrap();
+            if ! erased {
+                spi.write(i, &new_chunk).unwrap();
+            }
         }
 
         i += chunk.len();
@@ -97,7 +97,7 @@ fn main() {
     while data.len() < len {
         let mut address = data.len();
 
-        let mut buf = [0; 65536];
+        let mut buf = [0; 4096];
         let read = spi.read(address, &mut buf).unwrap();
         data.extend_from_slice(&buf[..read]);
 

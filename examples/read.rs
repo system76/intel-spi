@@ -42,6 +42,8 @@ unsafe fn release_spi(spi: &'static mut SpiCnl) {
 fn main() {
     let spi = unsafe { get_spi() };
 
+    eprintln!("SPI HSFSTS_CTL: {:?}", spi.hsfsts_ctl());
+
     let len = spi.len().unwrap();
     eprintln!("SPI ROM: {} KB", len / 1024);
 
