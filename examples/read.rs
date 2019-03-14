@@ -33,19 +33,17 @@ unsafe fn get_spi() -> &'static mut SpiCnl {
 fn main() {
     let spi = unsafe { get_spi() };
 
-    let hsfsts_ctl = spi.hsfsts_ctl();
-    println!("{:X}: {:?}", hsfsts_ctl.bits(), hsfsts_ctl);
-
     let len = spi.len().unwrap();
-    println!("SPI ROM: {} KB", len / 1024);
+    eprintln!("SPI ROM: {} KB", len / 1024);
 
     let mut data = Vec::with_capacity(len);
     while data.len() < len {
-        let mut buf = [0; 4096];
+        let mut buf = [0; 65536];
         let read = spi.read(data.len(), &mut buf).unwrap();
         data.extend_from_slice(&buf);
-        print!("\rSPI READ: {} KB", data.len() / 1024);
+        eprint!("\rSPI READ: {} KB", data.len() / 1024);
+
     }
 
-    println!("");
+    eprintln!("");
 }
