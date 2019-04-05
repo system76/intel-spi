@@ -80,7 +80,7 @@ fn main() {
             }
         }
 
-        eprint!("\rSPI WRITE: {} KB", data.len() / 1024);
+        eprint!("\rSPI WRITE: {} KB", i / 1024);
 
         if ! matching {
             spi.erase(i).unwrap();
