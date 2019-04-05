@@ -57,6 +57,7 @@ fn main() {
         let mut buf = [0; 65536];
         let read = spi.read(data.len(), &mut buf).unwrap();
         data.extend_from_slice(&buf[..read]);
+
         eprint!("\rSPI READ: {} KB", data.len() / 1024);
     }
 
@@ -80,8 +81,6 @@ fn main() {
             }
         }
 
-        eprint!("\rSPI WRITE: {} KB", i / 1024);
-
         if ! matching {
             spi.erase(i).unwrap();
             if ! erased {
@@ -90,6 +89,8 @@ fn main() {
         }
 
         i += chunk.len();
+
+        eprint!("\rSPI WRITE: {} KB", i / 1024);
     }
 
     eprintln!("");
