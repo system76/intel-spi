@@ -147,9 +147,15 @@ pub enum FdoSection {
     Master = 0b011 << 12
 }
 
+// Kaby Lake SPI is compatible with Sky Lake SPI
+pub type SpiKbl = SpiSkl;
+
+// Cannon Lake SPI is compatible with Sky Lake SPI
+pub type SpiCnl = SpiSkl;
+
 #[allow(dead_code)]
 #[repr(packed)]
-pub struct SpiCnl {
+pub struct SpiSkl {
     /// BIOS Flash Primary Region
     bfpreg: Mmio<u32>,
     /// Hardware Sequencing Flash Status and Control
@@ -191,7 +197,11 @@ pub struct SpiCnl {
     sbrs: Mmio<u32>,
 }
 
-impl SpiCnl {
+impl SpiSkl {
+    pub fn address() -> usize {
+        0xfe010000
+    }
+
     pub fn hsfsts_ctl(&self) -> HsfStsCtl {
         HsfStsCtl::from_bits_truncate(self.hsfsts_ctl.read())
     }
@@ -209,7 +219,7 @@ impl SpiCnl {
     }
 }
 
-impl Spi for SpiCnl {
+impl Spi for SpiSkl {
     fn len(&mut self) -> Result<usize, SpiError> {
         let component = self.fdo(FdoSection::Component, 0);
         Ok(match component & 0b111 {
@@ -354,12 +364,12 @@ impl Spi for SpiCnl {
 
 #[cfg(test)]
 mod tests {
-    use super::SpiCnl;
+    use super::SpiSkl;
 
     #[test]
     fn offsets() {
         unsafe {
-            let spi: &SpiCnl = &*(0 as *const SpiCnl);
+            let spi: &SpiSkl = &*(0 as *const SpiSkl);
 
             assert_eq!(&spi.bfpreg as *const _ as usize, 0x00);
 

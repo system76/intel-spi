@@ -1,46 +1,13 @@
 extern crate libc;
 extern crate intel_spi;
 
-use intel_spi::{Spi, SpiCnl};
-use std::{fs, mem, ptr};
+use intel_spi::Spi;
+use std::fs;
 
-unsafe fn get_spi() -> &'static mut SpiCnl {
-    let spibar = 0xfe010000;
-
-    let fd = libc::open(
-        b"/dev/mem\0".as_ptr() as *const libc::c_char,
-        libc::O_RDWR
-    );
-    if fd < 0 {
-        panic!("failed to open /dev/mem");
-    }
-
-    let p = libc::mmap(
-        ptr::null_mut(),
-        mem::size_of::<SpiCnl>(),
-        libc::PROT_READ | libc::PROT_WRITE,
-        libc::MAP_SHARED,
-        fd,
-        spibar
-    );
-    if p == libc::MAP_FAILED {
-        panic!("failed to map /dev/mem");
-    }
-
-    libc::close(fd);
-
-    &mut *(p as *mut SpiCnl)
-}
-
-unsafe fn release_spi(spi: &'static mut SpiCnl) {
-    libc::munmap(
-        spi as *mut SpiCnl as *mut libc::c_void,
-        mem::size_of::<SpiCnl>()
-    );
-}
+mod util;
 
 fn main() {
-    let spi = unsafe { get_spi() };
+    let spi = unsafe { util::get_spi() };
 
     eprintln!("SPI HSFSTS_CTL: {:?}", spi.hsfsts_ctl());
 
@@ -59,5 +26,5 @@ fn main() {
 
     fs::write("read.rom", &data).unwrap();
 
-    unsafe { release_spi(spi); }
+    unsafe { util::release_spi(spi); }
 }
