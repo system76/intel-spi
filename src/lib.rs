@@ -90,6 +90,28 @@ bitflags! {
 }
 
 impl HsfStsCtl {
+    fn sanitize(&mut self) {
+        // FDONE, FCERR, and H_AEL are cleared if one is written, so they are left untouched
+
+        // H_SCIP, FDOPSS, and FDV are RO; WRSDIS, PRR34_LOCKDN, and FLOCKDN are probably locked,
+        // so they are left untouched
+
+        // Clear FGO
+        self.remove(Self::FGO);
+
+        // Clear FCYCLE
+        self.remove(Self::FCYCLE);
+
+        // Clear WET
+        self.remove(Self::WET);
+
+        // Clear FDBC
+        self.remove(Self::FDBC);
+
+        // Clear FSMIE
+        self.remove(Self::FSMIE);
+    }
+
     fn cycle(&self) -> HsfStsCtlCycle {
         unsafe { mem::transmute((*self & Self::FCYCLE).bits) }
     }
@@ -246,6 +268,9 @@ impl Spi for SpiSkl {
                 }
             }
 
+            hsfsts_ctl.sanitize();
+            self.set_hsfsts_ctl(hsfsts_ctl);
+
             hsfsts_ctl.set_cycle(HsfStsCtlCycle::Read);
             hsfsts_ctl.set_count(chunk.len() as u8);
             hsfsts_ctl.insert(HsfStsCtl::FGO);
@@ -259,6 +284,9 @@ impl Spi for SpiSkl {
                 hsfsts_ctl = self.hsfsts_ctl();
 
                 if hsfsts_ctl.contains(HsfStsCtl::FCERR) {
+                    hsfsts_ctl.sanitize();
+                    self.set_hsfsts_ctl(hsfsts_ctl);
+
                     return Err(SpiError::Cycle);
                 }
 
@@ -273,6 +301,9 @@ impl Spi for SpiSkl {
                     *byte = (data >> (j * 8)) as u8;
                 }
             }
+
+            hsfsts_ctl.sanitize();
+            self.set_hsfsts_ctl(hsfsts_ctl);
 
             count += chunk.len()
         }
@@ -290,6 +321,9 @@ impl Spi for SpiSkl {
             }
         }
 
+        hsfsts_ctl.sanitize();
+        self.set_hsfsts_ctl(hsfsts_ctl);
+
         hsfsts_ctl.set_cycle(HsfStsCtlCycle::BlockErase);
         hsfsts_ctl.insert(HsfStsCtl::FGO);
 
@@ -302,6 +336,9 @@ impl Spi for SpiSkl {
             hsfsts_ctl = self.hsfsts_ctl();
 
             if hsfsts_ctl.contains(HsfStsCtl::FCERR) {
+                hsfsts_ctl.sanitize();
+                self.set_hsfsts_ctl(hsfsts_ctl);
+
                 return Err(SpiError::Cycle);
             }
 
@@ -309,6 +346,9 @@ impl Spi for SpiSkl {
                 break;
             }
         }
+
+        hsfsts_ctl.sanitize();
+        self.set_hsfsts_ctl(hsfsts_ctl);
 
         Ok(())
     }
@@ -325,6 +365,9 @@ impl Spi for SpiSkl {
                     break;
                 }
             }
+
+            hsfsts_ctl.sanitize();
+            self.set_hsfsts_ctl(hsfsts_ctl);
 
             hsfsts_ctl.set_cycle(HsfStsCtlCycle::Write);
             hsfsts_ctl.set_count(chunk.len() as u8);
@@ -348,6 +391,9 @@ impl Spi for SpiSkl {
                 hsfsts_ctl = self.hsfsts_ctl();
 
                 if hsfsts_ctl.contains(HsfStsCtl::FCERR) {
+                    hsfsts_ctl.sanitize();
+                    self.set_hsfsts_ctl(hsfsts_ctl);
+
                     return Err(SpiError::Cycle);
                 }
 
@@ -355,6 +401,9 @@ impl Spi for SpiSkl {
                     break;
                 }
             }
+
+            hsfsts_ctl.sanitize();
+            self.set_hsfsts_ctl(hsfsts_ctl);
 
             count += chunk.len()
         }
