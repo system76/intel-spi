@@ -31,26 +31,14 @@ fn main() {
     {
         let rom = Rom::new(&new);
         if let Some(fmap) = rom.fmap() {
-            let mut name = String::new();
-            for &b in fmap.name.iter() {
-                if b == 0 {
-                    break;
-                }
-                name.push(b as char);
-            }
+            let name = fmap.name.iter().take_while(|&&b| b != 0).map(|&b| b as char).collect();
 
             eprintln!("  {}", name);
 
             for i in 0..fmap.nareas {
                 let area = fmap.area(i);
 
-                let mut name = String::new();
-                for &b in area.name.iter() {
-                    if b == 0 {
-                        break;
-                    }
-                    name.push(b as char);
-                }
+                let name = area.name.iter().take_while(|&&b| b != 0).map(|&b| b as char).collect();
 
                 eprintln!("    {}: {}", i, name);
 
@@ -91,26 +79,14 @@ fn main() {
     {
         let rom = Rom::new(&data);
         if let Some(fmap) = rom.fmap() {
-            let mut name = String::new();
-            for &b in fmap.name.iter() {
-                if b == 0 {
-                    break;
-                }
-                name.push(b as char);
-            }
+            let name = fmap.name.iter().take_while(|&&b| b != 0).map(|&b| b as char).collect();
 
             eprintln!("  {}", name);
 
             for i in 0..fmap.nareas {
                 let area = fmap.area(i);
 
-                let mut name = String::new();
-                for &b in area.name.iter() {
-                    if b == 0 {
-                        break;
-                    }
-                    name.push(b as char);
-                }
+                let name = area.name.iter().take_while(|&&b| b != 0).map(|&b| b as char).collect();
 
                 eprintln!("    {}: {}", i, name);
 
