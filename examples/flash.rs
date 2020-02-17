@@ -97,7 +97,6 @@ fn main() {
 
     // Copy old areas to new areas
     let area_names = [
-        "RW_MRC_CACHE".to_string(),
         "SMMSTORE".to_string(),
     ];
     for area_name in &area_names {
