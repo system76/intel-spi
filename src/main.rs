@@ -30,7 +30,7 @@ fn main() {
         eprint!("SPI FILE: {}", loading);
         new = fs::read(path).unwrap();
         for _c in loading.chars() {
-            eprint!("\x08");
+            eprint!("\x08 \x08");
         }
         eprintln!("{} MB", new.len() / (1024 * 1024));
     }
