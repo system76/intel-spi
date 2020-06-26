@@ -105,10 +105,12 @@ fn main() {
     }
 
     // Copy old areas to new areas
-    let area_names = [
-        "SMMSTORE".to_string(),
+    let area_names: &[String] = &[
+        //Warning: Copying these regions can be dangerous
+        // "RW_MRC_CACHE".to_string(),
+        // "SMMSTORE".to_string(),
     ];
-    for area_name in &area_names {
+    for area_name in area_names {
         if let Some(new_area) = new_areas.get(area_name) {
             let new_offset = new_area.offset as usize;
             let new_size = new_area.size as usize;
