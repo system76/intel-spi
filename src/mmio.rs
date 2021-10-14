@@ -1,21 +1,23 @@
 // SPDX-License-Identifier: MIT
 
 use core::intrinsics::{volatile_load, volatile_store};
-use core::mem::uninitialized;
+use core::mem::MaybeUninit;
 use core::ops::{BitAnd, BitOr, Not};
 
 use super::io::Io;
 
 #[repr(packed)]
 pub struct Mmio<T> {
-    value: T,
+    value: T
 }
 
+#[allow(clippy::new_without_default)]
+#[allow(clippy::uninit_assumed_init)]
 impl<T> Mmio<T> {
     /// Create a new Mmio without initializing
     pub fn new() -> Self {
-        Mmio {
-            value: unsafe { uninitialized() }
+        Self {
+            value: unsafe { MaybeUninit::uninit().assume_init() }
         }
     }
 }

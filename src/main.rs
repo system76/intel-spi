@@ -53,7 +53,7 @@ fn main() {
 
                 eprintln!("    {}: {}", i, name);
 
-                new_areas.insert(name, area.clone());
+                new_areas.insert(name, *area);
             }
         }
     }
@@ -61,9 +61,7 @@ fn main() {
     // Check ROM size
     let len = spi.len().unwrap();
     eprintln!("SPI ROM: {} MB", len / (1024 * 1024));
-    if len != new.len() {
-        panic!("firmware.rom size invalid");
-    }
+    assert!(len == new.len(), "firmware.rom size invalid");
 
     // Read current data
     let mut data;
@@ -101,7 +99,7 @@ fn main() {
 
                 eprintln!("    {}: {}", i, name);
 
-                areas.insert(name, area.clone());
+                areas.insert(name, *area);
             }
         }
     }
@@ -191,7 +189,7 @@ fn main() {
             if ! matching {
                 spi.erase(i).unwrap();
                 if ! erased {
-                    spi.write(i, &new_chunk).unwrap();
+                    spi.write(i, new_chunk).unwrap();
                 }
             }
 
@@ -204,7 +202,7 @@ fn main() {
                 print_mb = mb;
             }
         }
-        eprintln!("");
+        eprintln!();
     }
 
     // Verify
@@ -219,14 +217,13 @@ fn main() {
             data.extend_from_slice(&buf[..read]);
 
             while address < data.len() {
-                if data[address] != new[address] {
-                    panic!(
-                        "\nverification failed as {:#x}: {:#x} != {:#x}",
-                        address,
-                        data[address],
-                        new[address]
-                    );
-                }
+                assert!(data[address] == new[address],
+                    "\nverification failed as {:#x}: {:#x} != {:#x}",
+                    address,
+                    data[address],
+                    new[address]
+                );
+
                 address += 1;
             }
 
@@ -236,7 +233,7 @@ fn main() {
                 print_mb = mb;
             }
         }
-        eprintln!("");
+        eprintln!();
     }
 
     unsafe { util::release_spi(spi); }

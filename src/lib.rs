@@ -3,6 +3,8 @@
 #![no_std]
 #![feature(core_intrinsics)]
 
+#![allow(dead_code)]
+
 #[macro_use]
 extern crate bitflags;
 
@@ -24,6 +26,7 @@ pub enum SpiError {
     Register,
 }
 
+#[allow(clippy::len_without_is_empty)]
 pub trait Spi {
     fn len(&mut self) -> Result<usize, SpiError>;
 
