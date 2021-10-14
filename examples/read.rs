@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 extern crate libc;
 extern crate intel_spi;
 

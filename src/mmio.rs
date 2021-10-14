@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 use core::intrinsics::{volatile_load, volatile_store};
 use core::mem::uninitialized;
 use core::ops::{BitAnd, BitOr, Not};

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 extern crate coreboot_fs;
 extern crate libc;
 extern crate intel_spi;
