@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 use core::cmp::PartialEq;
 use core::ops::{BitAnd, BitOr, Not};
 

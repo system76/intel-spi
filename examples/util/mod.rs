@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 use intel_spi::SpiSkl;
 
 use std::{mem, ptr};
