@@ -24,7 +24,7 @@ fn main() {
         eprint!("\rSPI READ: {} KB", data.len() / 1024);
     }
 
-    eprintln!("");
+    eprintln!();
 
     fs::write("read.rom", &data).unwrap();
 

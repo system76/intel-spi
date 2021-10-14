@@ -11,9 +11,7 @@ pub unsafe fn get_spi() -> &'static mut SpiSkl {
         b"/dev/mem\0".as_ptr() as *const libc::c_char,
         libc::O_RDWR
     );
-    if fd < 0 {
-        panic!("failed to open /dev/mem");
-    }
+    assert!(fd >= 0, "failed to open /dev/mem");
 
     let p = libc::mmap(
         ptr::null_mut(),
@@ -23,9 +21,7 @@ pub unsafe fn get_spi() -> &'static mut SpiSkl {
         fd,
         spibar as libc::off_t
     );
-    if p == libc::MAP_FAILED {
-        panic!("failed to map /dev/mem");
-    }
+    assert!(p != libc::MAP_FAILED, "failed to map /dev/mem");
 
     libc::close(fd);
 

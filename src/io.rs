@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 
+#![allow(dead_code)]
+
 use core::cmp::PartialEq;
 use core::ops::{BitAnd, BitOr, Not};
 
@@ -29,10 +31,8 @@ pub struct ReadOnly<I: Io> {
 }
 
 impl<I: Io> ReadOnly<I> {
-    pub /* const */ fn new(inner: I) -> ReadOnly<I> {
-        ReadOnly {
-            inner: inner
-        }
+    pub /* const */ fn new(inner: I) -> Self {
+        Self { inner }
     }
 
     #[inline(always)]
@@ -51,10 +51,8 @@ pub struct WriteOnly<I: Io> {
 }
 
 impl<I: Io> WriteOnly<I> {
-    pub /* const */ fn new(inner: I) -> WriteOnly<I> {
-        WriteOnly {
-            inner: inner
-        }
+    pub /* const */ fn new(inner: I) -> Self {
+        Self { inner }
     }
 
     #[inline(always)]
