@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 
-use core::intrinsics::{volatile_load, volatile_store};
-use core::mem::MaybeUninit;
 use core::ops::{BitAnd, BitOr, Not};
+use core::ptr;
 
 use super::io::Io;
 
@@ -11,25 +10,16 @@ pub struct Mmio<T> {
     value: T
 }
 
-#[allow(clippy::new_without_default)]
-#[allow(clippy::uninit_assumed_init)]
-impl<T> Mmio<T> {
-    /// Create a new Mmio without initializing
-    pub fn new() -> Self {
-        Self {
-            value: unsafe { MaybeUninit::uninit().assume_init() }
-        }
-    }
-}
-
 impl<T> Io for Mmio<T> where T: Copy + PartialEq + BitAnd<Output = T> + BitOr<Output = T> + Not<Output = T> {
     type Value = T;
 
     fn read(&self) -> T {
-        unsafe { volatile_load(&self.value) }
+        let raw = ptr::addr_of!(self.value);
+        unsafe { raw.read_volatile() }
     }
 
     fn write(&mut self, value: T) {
-        unsafe { volatile_store(&mut self.value, value) };
+        let raw = ptr::addr_of_mut!(self.value);
+        unsafe { raw.write_volatile(value) };
     }
 }

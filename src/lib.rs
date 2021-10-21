@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: MIT
 
 #![no_std]
-#![feature(core_intrinsics)]
-
-#![allow(dead_code)]
 
 #[macro_use]
 extern crate bitflags;
@@ -94,6 +91,7 @@ bitflags! {
     }
 }
 
+#[allow(dead_code)]
 impl HsfStsCtl {
     fn sanitize(&mut self) {
         // FDONE, FCERR, and H_AEL are cleared if one is written, so they are left untouched
