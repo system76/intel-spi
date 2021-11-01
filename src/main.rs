@@ -122,7 +122,7 @@ fn main() {
     match copy_region(intelflash::RegionKind::Ethernet, &data, &mut new) {
         Ok(true) => eprintln!("Ethernet: copied region from old firmware to new firmare"),
         Ok(false) => (),
-        Err(err) => eprintln!("Ethernet: failed to copy: {}", err),
+        Err(err) => panic!("Ethernet: failed to copy: {}", err),
     }
 
     // Grab old FMAP areas, if they exist
