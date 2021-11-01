@@ -12,6 +12,41 @@ use std::{env, fs, process};
 #[path = "../examples/util/mod.rs"]
 mod util;
 
+fn copy_region(region: intelflash::RegionKind, old_data: &[u8], new_data: &mut [u8]) -> Result<bool, String> {
+    let old_opt = intelflash::Rom::new(old_data)?.get_region_base_limit(region)?;
+    let new_opt = intelflash::Rom::new(new_data)?.get_region_base_limit(region)?;
+
+    if old_opt.is_none() && new_opt.is_none() {
+        // Neither ROM has this region, so ignore it
+        return Ok(false);
+    }
+
+    let old = match old_opt {
+        Some((base, limit)) => if base < limit && limit < old_data.len() {
+            &old_data[base..limit + 1]
+        } else {
+            return Err(format!("old region {:#X}:{:#X} is invalid", base, limit));
+        },
+        None => return Err(format!("missing old region")),
+    };
+
+    let new = match new_opt {
+        Some((base, limit)) => if base < limit && limit < new_data.len() {
+            &mut new_data[base..limit + 1]
+        } else {
+            return Err(format!("new region {:#X}:{:#X} is invalid", base, limit));
+        },
+        None => return Err(format!("missing new region")),
+    };
+
+    if old.len() != new.len() {
+        return Err(format!("old region size {} does not match new region size {}", old.len(), new.len()));
+    }
+
+    new.copy_from_slice(old);
+    Ok(true)
+}
+
 fn main() {
     let path = match env::args().nth(1) {
         Some(some) => some,
@@ -81,6 +116,13 @@ fn main() {
             }
         }
         eprintln!();
+    }
+
+    // Copy GBE region, if it exists
+    match copy_region(intelflash::RegionKind::Ethernet, &data, &mut new) {
+        Ok(true) => eprintln!("Ethernet: copied region from old firmware to new firmare"),
+        Ok(false) => (),
+        Err(err) => eprintln!("Ethernet: failed to copy: {}", err),
     }
 
     // Grab old FMAP areas, if they exist
