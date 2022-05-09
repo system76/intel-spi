@@ -341,16 +341,21 @@ impl SpiRegs {
 
 impl Spi for SpiRegs {
     fn len(&mut self) -> Result<usize, SpiError> {
+        let kib = 1024;
+        let mib = 1024 * kib;
+
         let component = self.fdo(FdoSection::Component, 0);
         Ok(match component & 0b111 {
-            0b000 => 512,
-            0b001 => 1024,
-            0b010 => 2048,
-            0b011 => 4096,
-            0b100 => 8192,
-            0b101 => 16384,
+            0b000 => 512 * kib,
+            0b001 => mib,
+            0b010 => 2 * mib,
+            0b011 => 4 * mib,
+            0b100 => 8 * mib,
+            0b101 => 16 * mib,
+            0b110 => 32 * mib,
+            0b111 => 64 * mib,
             _ => return Err(SpiError::Register)
-        } * 1024)
+        })
     }
 
     fn read(&mut self, address: usize, buf: &mut [u8]) -> Result<usize, SpiError> {
