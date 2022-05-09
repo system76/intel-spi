@@ -11,7 +11,7 @@ mod util;
 fn main() {
     let mut spi = unsafe { util::get_spi() };
 
-    eprintln!("SPI HSFSTS_CTL: {:?}", spi.hsfsts_ctl());
+    eprintln!("SPI HSFSTS_CTL: {:?}", spi.regs.hsfsts_ctl());
 
     let len = spi.len().unwrap();
     eprintln!("SPI ROM: {} KB", len / 1024);
