@@ -9,7 +9,7 @@ use std::fs;
 mod util;
 
 fn main() {
-    let spi = unsafe { util::get_spi() };
+    let mut spi = unsafe { util::get_spi() };
 
     eprintln!("SPI HSFSTS_CTL: {:?}", spi.hsfsts_ctl());
 
@@ -27,6 +27,4 @@ fn main() {
     eprintln!();
 
     fs::write("read.rom", &data).unwrap();
-
-    unsafe { util::release_spi(spi); }
 }

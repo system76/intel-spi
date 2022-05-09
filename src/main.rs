@@ -56,9 +56,9 @@ fn main() {
         }
     };
 
-    let spi = unsafe { util::get_spi() };
+    let mut spi = unsafe { util::get_spi() };
 
-    eprintln!("SPI HSFSTS_CTL: {:?}", spi.hsfsts_ctl());
+    eprintln!("SPI HSFSTS_CTL: {:?}", spi.regs.hsfsts_ctl());
 
     // Read new data
     let mut new;
@@ -277,6 +277,4 @@ fn main() {
         }
         eprintln!();
     }
-
-    unsafe { util::release_spi(spi); }
 }

@@ -5,13 +5,26 @@
 #[macro_use]
 extern crate bitflags;
 
-use core::{cmp, mem};
+use core::{cmp, mem, slice};
 
 pub use self::io::Io;
 mod io;
 
+pub use self::mapper::{PhysicalAddress, VirtualAddress, Mapper};
+mod mapper;
+
 pub use self::mmio::Mmio;
 mod mmio;
+
+pub static PCI_IDS: &[(u16, u16)] = &[
+    (0x8086, 0x02A4), // Comet Lake
+    (0x8086, 0x06A4), // Comet Lake-H
+    (0x8086, 0x43A4), // Tiger Lake-H
+    (0x8086, 0x51A4), // Alder Lake-P
+    (0x8086, 0x9DA4), // Cannon Lake
+    (0x8086, 0xA0A4), // Tiger Lake
+    (0x8086, 0xA324), // Cannon Lake-H
+];
 
 #[derive(Debug)]
 pub enum SpiError {
@@ -32,6 +45,98 @@ pub trait Spi {
     fn erase(&mut self, address: usize) -> Result<(), SpiError>;
 
     fn write(&mut self, address: usize, buf: &[u8]) -> Result<usize, SpiError>;
+}
+
+pub struct SpiDev<'m, M: Mapper> {
+    mapper: &'m mut M,
+    pub regs: &'m mut SpiRegs,
+}
+
+impl<'m, M: Mapper> SpiDev<'m, M> {
+    pub unsafe fn new(mcfg: &[u8], mapper: &'m mut M) -> Result<Self, &'static str> {
+        let pcie_base =
+            (mcfg[0x2c] as usize) |
+            (mcfg[0x2d] as usize) << 8 |
+            (mcfg[0x2e] as usize) << 16 |
+            (mcfg[0x2f] as usize) << 24 |
+            (mcfg[0x30] as usize) << 32 |
+            (mcfg[0x31] as usize) << 40 |
+            (mcfg[0x32] as usize) << 48 |
+            (mcfg[0x33] as usize) << 56;
+
+        let mut phys_opt = None;
+        {
+            let (pcie_bus, pcie_dev, pcie_func) = (0x00, 0x1F, 0x05);
+            let pcie_size = 4096;
+
+            let pcie_phys = PhysicalAddress(
+                pcie_base |
+                (pcie_bus << 20) |
+                (pcie_dev << 15) |
+                (pcie_func << 12)
+            );
+            let pcie_virt = mapper.map(pcie_phys, pcie_size)?;
+            {
+                let pcie_space = slice::from_raw_parts_mut(pcie_virt.0 as *mut u8, pcie_size);
+
+                let vendor_id =
+                    (pcie_space[0x00] as u16) |
+                    (pcie_space[0x01] as u16) << 8;
+                let product_id =
+                    (pcie_space[0x02] as u16) |
+                    (pcie_space[0x03] as u16) << 8;
+                for known_id in PCI_IDS.iter() {
+                    if known_id.0 == vendor_id && known_id.1 == product_id {
+                        let bar0 =
+                            (pcie_space[0x10] as u32) |
+                            (pcie_space[0x11] as u32) << 8 |
+                            (pcie_space[0x12] as u32) << 16 |
+                            (pcie_space[0x13] as u32) << 24;
+                        phys_opt = Some(PhysicalAddress(bar0 as usize));
+                        break;
+                    }
+                }
+            }
+            mapper.unmap(pcie_virt, pcie_size)?;
+        }
+
+        let phys = match phys_opt {
+            Some(some) => some,
+            None => return Err("no supported SPI device found"),
+        };
+        let virt = mapper.map(phys, mem::size_of::<SpiRegs>())?;
+        let regs = &mut *(virt.0 as *mut SpiRegs);
+
+        Ok(Self {
+            mapper,
+            regs,
+        })
+    }
+}
+
+impl<'m, M: Mapper> Spi for SpiDev<'m, M> {
+    fn len(&mut self) -> Result<usize, SpiError> {
+        self.regs.len()
+    }
+
+    fn read(&mut self, address: usize, buf: &mut [u8]) -> Result<usize, SpiError> {
+        self.regs.read(address, buf)
+    }
+
+    fn erase(&mut self, address: usize) -> Result<(), SpiError> {
+        self.regs.erase(address)
+    }
+
+    fn write(&mut self, address: usize, buf: &[u8]) -> Result<usize, SpiError> {
+        self.regs.write(address, buf)
+    }
+}
+
+impl<'m, M: Mapper> Drop for SpiDev<'m, M> {
+    fn drop(&mut self) {
+        let virt = VirtualAddress(self.regs as *mut SpiRegs as usize);
+        let _ = unsafe { self.mapper.unmap(virt, mem::size_of::<SpiRegs>()) };
+    }
 }
 
 bitflags! {
@@ -172,15 +277,9 @@ pub enum FdoSection {
     Master = 0b011 << 12
 }
 
-// Kaby Lake SPI is compatible with Sky Lake SPI
-pub type SpiKbl = SpiSkl;
-
-// Cannon Lake SPI is compatible with Sky Lake SPI
-pub type SpiCnl = SpiSkl;
-
 #[allow(dead_code)]
 #[repr(packed)]
-pub struct SpiSkl {
+pub struct SpiRegs {
     /// BIOS Flash Primary Region
     bfpreg: Mmio<u32>,
     /// Hardware Sequencing Flash Status and Control
@@ -222,11 +321,7 @@ pub struct SpiSkl {
     sbrs: Mmio<u32>,
 }
 
-impl SpiSkl {
-    pub fn address() -> usize {
-        0xfe010000
-    }
-
+impl SpiRegs {
     pub fn hsfsts_ctl(&self) -> HsfStsCtl {
         HsfStsCtl::from_bits_truncate(self.hsfsts_ctl.read())
     }
@@ -244,7 +339,7 @@ impl SpiSkl {
     }
 }
 
-impl Spi for SpiSkl {
+impl Spi for SpiRegs {
     fn len(&mut self) -> Result<usize, SpiError> {
         let component = self.fdo(FdoSection::Component, 0);
         Ok(match component & 0b111 {
@@ -416,12 +511,12 @@ impl Spi for SpiSkl {
 
 #[cfg(test)]
 mod tests {
-    use super::SpiSkl;
+    use super::SpiRegs;
 
     #[test]
     fn offsets() {
         unsafe {
-            let spi: &SpiSkl = &*(0 as *const SpiSkl);
+            let spi: &SpiRegs = &*(0 as *const SpiRegs);
 
             assert_eq!(&spi.bfpreg as *const _ as usize, 0x00);
 

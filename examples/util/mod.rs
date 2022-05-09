@@ -1,36 +1,55 @@
 // SPDX-License-Identifier: MIT
 
-use intel_spi::SpiSkl;
+use intel_spi::{Mapper, SpiDev, PhysicalAddress, VirtualAddress};
 
-use std::{mem, ptr};
+use std::{fs, ptr};
 
-pub unsafe fn get_spi() -> &'static mut SpiSkl {
-    let spibar = SpiSkl::address();
+pub struct LinuxMapper;
 
-    let fd = libc::open(
-        b"/dev/mem\0".as_ptr() as *const libc::c_char,
-        libc::O_RDWR
-    );
-    assert!(fd >= 0, "failed to open /dev/mem");
+impl Mapper for LinuxMapper {
+    unsafe fn map_aligned(&mut self, address: PhysicalAddress, size: usize) -> Result<VirtualAddress, &'static str> {
+        let fd = libc::open(
+            b"/dev/mem\0".as_ptr() as *const libc::c_char,
+            libc::O_RDWR
+        );
+        if fd < 0 {
+            return Err("failed to open /dev/mem")
+        }
 
-    let p = libc::mmap(
-        ptr::null_mut(),
-        mem::size_of::<SpiSkl>(),
-        libc::PROT_READ | libc::PROT_WRITE,
-        libc::MAP_SHARED,
-        fd,
-        spibar as libc::off_t
-    );
-    assert!(p != libc::MAP_FAILED, "failed to map /dev/mem");
+        let ptr = libc::mmap(
+            ptr::null_mut(),
+            size,
+            libc::PROT_READ | libc::PROT_WRITE,
+            libc::MAP_SHARED,
+            fd,
+            address.0 as libc::off_t
+        );
 
-    libc::close(fd);
+        libc::close(fd);
 
-    &mut *(p as *mut SpiSkl)
+        if ptr == libc::MAP_FAILED {
+            return Err("failed to map /dev/mem");
+        }
+
+        Ok(VirtualAddress(ptr as usize))
+    }
+
+    unsafe fn unmap_aligned(&mut self, address: VirtualAddress, size: usize) -> Result<(), &'static str> {
+        if libc::munmap(address.0 as *mut libc::c_void, size) == 0 {
+            Ok(())
+        } else {
+            Err("failed to unmap /dev/mem")
+        }
+    }
+
+    fn page_size(&self) -> usize {
+        //TODO: get dynamically
+        4096
+    }
 }
 
-pub unsafe fn release_spi(spi: &'static mut SpiSkl) {
-    libc::munmap(
-        spi as *mut SpiSkl as *mut libc::c_void,
-        mem::size_of::<SpiSkl>()
-    );
+pub unsafe fn get_spi() -> SpiDev<'static, LinuxMapper> {
+    static mut LINUX_MAPPER: LinuxMapper = LinuxMapper;
+    let mcfg = fs::read("/sys/firmware/acpi/tables/MCFG").expect("failed to read MCFG");
+    SpiDev::new(&mcfg, &mut LINUX_MAPPER).expect("failed to get SPI device")
 }
