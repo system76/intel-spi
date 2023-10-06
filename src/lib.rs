@@ -54,6 +54,7 @@ pub struct SpiDev<'m, M: Mapper> {
 }
 
 impl<'m, M: Mapper> SpiDev<'m, M> {
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn new(mcfg: &[u8], mapper: &'m mut M) -> Result<Self, &'static str> {
         let pcie_base =
             (mcfg[0x2c] as usize) |
@@ -141,6 +142,7 @@ impl<'m, M: Mapper> Drop for SpiDev<'m, M> {
 }
 
 bitflags! {
+    #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone, Copy)]
     pub struct HsfStsCtl: u32 {
         /// Flash Cycle Done
         const FDONE = 1 << 0;
@@ -222,7 +224,7 @@ impl HsfStsCtl {
     }
 
     fn cycle(&self) -> HsfStsCtlCycle {
-        unsafe { mem::transmute((*self & Self::FCYCLE).bits) }
+        unsafe { mem::transmute((*self & Self::FCYCLE).bits()) }
     }
 
     fn set_cycle(&mut self, value: HsfStsCtlCycle) {
@@ -232,7 +234,7 @@ impl HsfStsCtl {
     }
 
     fn count(&self) -> u8 {
-        (((*self & Self::FDBC).bits >> 24) + 1) as u8
+        (((*self & Self::FDBC).bits() >> 24) + 1) as u8
     }
 
     fn set_count(&mut self, value: u8) {
@@ -328,7 +330,7 @@ impl SpiRegs {
     }
 
     pub fn set_hsfsts_ctl(&mut self, value: HsfStsCtl) {
-        self.hsfsts_ctl.write(value.bits);
+        self.hsfsts_ctl.write(value.bits());
     }
 
     pub fn fdo(&mut self, section: FdoSection, index: u16) -> u32 {

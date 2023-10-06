@@ -1,3 +1,5 @@
+#![allow(clippy::missing_safety_doc)]
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct PhysicalAddress(pub usize);
 

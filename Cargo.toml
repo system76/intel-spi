@@ -7,7 +7,7 @@ description = "Library for accessing Intel PCH SPI"
 license = "MIT"
 
 [dependencies]
-bitflags = "1.0.4"
-coreboot-fs = "0.1.0"
+bitflags = "2.4.0"
+coreboot-fs = "0.1.1"
 libc = "0.2"
-redox_intelflash = "0.1.2"
+redox_intelflash = "0.1.3"
