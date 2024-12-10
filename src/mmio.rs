@@ -5,7 +5,7 @@ use core::ptr;
 
 use super::io::Io;
 
-#[repr(packed)]
+#[repr(transparent)]
 pub struct Mmio<T> {
     value: T
 }
@@ -14,12 +14,10 @@ impl<T> Io for Mmio<T> where T: Copy + PartialEq + BitAnd<Output = T> + BitOr<Ou
     type Value = T;
 
     fn read(&self) -> T {
-        let raw = ptr::addr_of!(self.value);
-        unsafe { raw.read_volatile() }
+        unsafe { ptr::read_volatile(&self.value) }
     }
 
     fn write(&mut self, value: T) {
-        let raw = ptr::addr_of_mut!(self.value);
-        unsafe { raw.write_volatile(value) };
+        unsafe { ptr::write_volatile(&mut self.value, value) };
     }
 }

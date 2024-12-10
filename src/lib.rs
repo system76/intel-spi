@@ -283,7 +283,7 @@ pub enum FdoSection {
 }
 
 #[allow(dead_code)]
-#[repr(packed)]
+#[repr(C)]
 pub struct SpiRegs {
     /// BIOS Flash Primary Region
     bfpreg: Mmio<u32>,
