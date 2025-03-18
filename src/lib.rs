@@ -21,6 +21,7 @@ pub static PCI_IDS: &[(u16, u16)] = &[
     (0x8086, 0x06A4), // Comet Lake-H
     (0x8086, 0x43A4), // Tiger Lake-H
     (0x8086, 0x51A4), // Alder Lake-P
+    (0x8086, 0x7723), // Arrow Lake-HU
     (0x8086, 0x7A24), // Alder Lake-S
     (0x8086, 0x7E23), // Meteor Lake-HU
     (0x8086, 0x9DA4), // Cannon Lake
