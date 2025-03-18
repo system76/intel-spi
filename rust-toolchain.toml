@@ -1,2 +1,8 @@
+# SPDX-License-Identifier: CC0-1.0
+# SPDX-FileCopyrightText: NONE
+
 [toolchain]
-channel = "nightly-2024-05-11"
+channel = "1.85.0"
+components = ["clippy", "rustfmt"]
+targets = ["x86_64-unknown-uefi"]
+profile = "minimal"
