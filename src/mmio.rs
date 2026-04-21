@@ -7,10 +7,13 @@ use super::io::Io;
 
 #[repr(transparent)]
 pub struct Mmio<T> {
-    value: T
+    value: T,
 }
 
-impl<T> Io for Mmio<T> where T: Copy + PartialEq + BitAnd<Output = T> + BitOr<Output = T> + Not<Output = T> {
+impl<T> Io for Mmio<T>
+where
+    T: Copy + PartialEq + BitAnd<Output = T> + BitOr<Output = T> + Not<Output = T>,
+{
     type Value = T;
 
     fn read(&self) -> T {

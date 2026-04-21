@@ -1,20 +1,21 @@
 // SPDX-License-Identifier: MIT
 
-use intel_spi::{Mapper, SpiDev, PhysicalAddress, VirtualAddress};
+use intel_spi::{Mapper, PhysicalAddress, SpiDev, VirtualAddress};
 
 use std::{fs, ptr};
 
 pub struct LinuxMapper;
 
 impl Mapper for LinuxMapper {
-    unsafe fn map_aligned(&mut self, address: PhysicalAddress, size: usize) -> Result<VirtualAddress, &'static str> {
+    unsafe fn map_aligned(
+        &mut self,
+        address: PhysicalAddress,
+        size: usize,
+    ) -> Result<VirtualAddress, &'static str> {
         let ptr = unsafe {
-            let fd = libc::open(
-                c"/dev/mem".as_ptr() as *const libc::c_char,
-                libc::O_RDWR
-            );
+            let fd = libc::open(c"/dev/mem".as_ptr() as *const libc::c_char, libc::O_RDWR);
             if fd < 0 {
-                return Err("failed to open /dev/mem")
+                return Err("failed to open /dev/mem");
             }
 
             let libc_ptr = libc::mmap(
@@ -23,7 +24,7 @@ impl Mapper for LinuxMapper {
                 libc::PROT_READ | libc::PROT_WRITE,
                 libc::MAP_SHARED,
                 fd,
-                address.0 as libc::off_t
+                address.0 as libc::off_t,
             );
 
             libc::close(fd);
@@ -38,7 +39,11 @@ impl Mapper for LinuxMapper {
         Ok(VirtualAddress(ptr as usize))
     }
 
-    unsafe fn unmap_aligned(&mut self, address: VirtualAddress, size: usize) -> Result<(), &'static str> {
+    unsafe fn unmap_aligned(
+        &mut self,
+        address: VirtualAddress,
+        size: usize,
+    ) -> Result<(), &'static str> {
         if unsafe { libc::munmap(address.0 as *mut libc::c_void, size) } == 0 {
             Ok(())
         } else {

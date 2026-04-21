@@ -10,7 +10,7 @@ use core::{cmp, mem, slice};
 pub use self::io::Io;
 mod io;
 
-pub use self::mapper::{PhysicalAddress, VirtualAddress, Mapper};
+pub use self::mapper::{Mapper, PhysicalAddress, VirtualAddress};
 mod mapper;
 
 pub use self::mmio::Mmio;
@@ -63,15 +63,14 @@ pub struct SpiDev<'m, M: Mapper> {
 impl<'m, M: Mapper> SpiDev<'m, M> {
     #[allow(clippy::missing_safety_doc)]
     pub unsafe fn new(mcfg: &[u8], mapper: &'m mut M) -> Result<Self, &'static str> {
-        let pcie_base =
-            (mcfg[0x2c] as usize) |
-            ((mcfg[0x2d] as usize) << 8) |
-            ((mcfg[0x2e] as usize) << 16) |
-            ((mcfg[0x2f] as usize) << 24) |
-            ((mcfg[0x30] as usize) << 32) |
-            ((mcfg[0x31] as usize) << 40) |
-            ((mcfg[0x32] as usize) << 48) |
-            ((mcfg[0x33] as usize) << 56);
+        let pcie_base = (mcfg[0x2c] as usize)
+            | ((mcfg[0x2d] as usize) << 8)
+            | ((mcfg[0x2e] as usize) << 16)
+            | ((mcfg[0x2f] as usize) << 24)
+            | ((mcfg[0x30] as usize) << 32)
+            | ((mcfg[0x31] as usize) << 40)
+            | ((mcfg[0x32] as usize) << 48)
+            | ((mcfg[0x33] as usize) << 56);
 
         let mut phys_opt = None;
         {
@@ -79,28 +78,21 @@ impl<'m, M: Mapper> SpiDev<'m, M> {
             let pcie_size = 4096;
 
             let pcie_phys = PhysicalAddress(
-                pcie_base |
-                (pcie_bus << 20) |
-                (pcie_dev << 15) |
-                (pcie_func << 12)
+                pcie_base | (pcie_bus << 20) | (pcie_dev << 15) | (pcie_func << 12),
             );
             let pcie_virt = unsafe { mapper.map(pcie_phys, pcie_size)? };
             {
-                let pcie_space = unsafe { slice::from_raw_parts_mut(pcie_virt.0 as *mut u8, pcie_size) };
+                let pcie_space =
+                    unsafe { slice::from_raw_parts_mut(pcie_virt.0 as *mut u8, pcie_size) };
 
-                let vendor_id =
-                    (pcie_space[0x00] as u16) |
-                    ((pcie_space[0x01] as u16) << 8);
-                let product_id =
-                    (pcie_space[0x02] as u16) |
-                    ((pcie_space[0x03] as u16) << 8);
+                let vendor_id = (pcie_space[0x00] as u16) | ((pcie_space[0x01] as u16) << 8);
+                let product_id = (pcie_space[0x02] as u16) | ((pcie_space[0x03] as u16) << 8);
                 for known_id in PCI_IDS.iter() {
                     if known_id.0 == vendor_id && known_id.1 == product_id {
-                        let bar0 =
-                            (pcie_space[0x10] as u32) |
-                            ((pcie_space[0x11] as u32) << 8) |
-                            ((pcie_space[0x12] as u32) << 16) |
-                            ((pcie_space[0x13] as u32) << 24);
+                        let bar0 = (pcie_space[0x10] as u32)
+                            | ((pcie_space[0x11] as u32) << 8)
+                            | ((pcie_space[0x12] as u32) << 16)
+                            | ((pcie_space[0x13] as u32) << 24);
                         phys_opt = Some(PhysicalAddress(bar0 as usize));
                         break;
                     }
@@ -235,9 +227,7 @@ impl HsfStsCtl {
     }
 
     fn set_cycle(&mut self, value: HsfStsCtlCycle) {
-        *self = (*self & !Self::FCYCLE) | (
-            Self::from_bits_truncate(value as u32)
-        );
+        *self = (*self & !Self::FCYCLE) | (Self::from_bits_truncate(value as u32));
     }
 
     fn count(&self) -> u8 {
@@ -245,11 +235,8 @@ impl HsfStsCtl {
     }
 
     fn set_count(&mut self, value: u8) {
-        *self = (*self & !Self::FDBC) | (
-            Self::from_bits_truncate(
-                (cmp::max(value, 64).saturating_sub(1) as u32) << 24
-            )
-        );
+        *self = (*self & !Self::FDBC)
+            | (Self::from_bits_truncate((cmp::max(value, 64).saturating_sub(1) as u32) << 24));
     }
 }
 
@@ -284,7 +271,7 @@ pub enum FdoSection {
     Map = 0b000 << 12,
     Component = 0b001 << 12,
     Region = 0b010 << 12,
-    Master = 0b011 << 12
+    Master = 0b011 << 12,
 }
 
 #[allow(dead_code)]
@@ -341,10 +328,7 @@ impl SpiRegs {
     }
 
     pub fn fdo(&mut self, section: FdoSection, index: u16) -> u32 {
-        self.fdoc.write(
-            (section as u32) |
-            (((index & 0b1111111111) as u32) << 2)
-        );
+        self.fdoc.write((section as u32) | (((index & 0b1111111111) as u32) << 2));
         self.fdod.read()
     }
 }
@@ -364,7 +348,7 @@ impl Spi for SpiRegs {
             0b101 => 16 * mib,
             0b110 => 32 * mib,
             0b111 => 64 * mib,
-            _ => return Err(SpiError::Register)
+            _ => return Err(SpiError::Register),
         })
     }
 
@@ -376,7 +360,7 @@ impl Spi for SpiRegs {
             // Wait for other transactions
             loop {
                 hsfsts_ctl = self.hsfsts_ctl();
-                if ! hsfsts_ctl.contains(HsfStsCtl::H_SCIP) {
+                if !hsfsts_ctl.contains(HsfStsCtl::H_SCIP) {
                     break;
                 }
             }
@@ -429,7 +413,7 @@ impl Spi for SpiRegs {
         // Wait for other transactions
         loop {
             hsfsts_ctl = self.hsfsts_ctl();
-            if ! hsfsts_ctl.contains(HsfStsCtl::H_SCIP) {
+            if !hsfsts_ctl.contains(HsfStsCtl::H_SCIP) {
                 break;
             }
         }
@@ -474,7 +458,7 @@ impl Spi for SpiRegs {
             // Wait for other transactions
             loop {
                 hsfsts_ctl = self.hsfsts_ctl();
-                if ! hsfsts_ctl.contains(HsfStsCtl::H_SCIP) {
+                if !hsfsts_ctl.contains(HsfStsCtl::H_SCIP) {
                     break;
                 }
             }

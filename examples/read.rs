@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
-extern crate libc;
 extern crate intel_spi;
+extern crate libc;
 
 use intel_spi::Spi;
 use std::fs;

@@ -7,13 +7,25 @@ pub struct PhysicalAddress(pub usize);
 pub struct VirtualAddress(pub usize);
 
 pub trait Mapper {
-    unsafe fn map_aligned(&mut self, address: PhysicalAddress, size: usize) -> Result<VirtualAddress, &'static str>;
-    unsafe fn unmap_aligned(&mut self, address: VirtualAddress, size: usize) -> Result<(), &'static str>;
+    unsafe fn map_aligned(
+        &mut self,
+        address: PhysicalAddress,
+        size: usize,
+    ) -> Result<VirtualAddress, &'static str>;
+    unsafe fn unmap_aligned(
+        &mut self,
+        address: VirtualAddress,
+        size: usize,
+    ) -> Result<(), &'static str>;
     fn page_size(&self) -> usize;
 
-    unsafe fn map(&mut self, address: PhysicalAddress, size: usize) -> Result<VirtualAddress, &'static str> {
+    unsafe fn map(
+        &mut self,
+        address: PhysicalAddress,
+        size: usize,
+    ) -> Result<VirtualAddress, &'static str> {
         let page_size = self.page_size();
-        let page = address.0/page_size;
+        let page = address.0 / page_size;
         let aligned_address = PhysicalAddress(page * page_size);
         let offset = address.0 - aligned_address.0;
         let pages = (offset + size).div_ceil(page_size);
@@ -24,7 +36,7 @@ pub trait Mapper {
 
     unsafe fn unmap(&mut self, address: VirtualAddress, size: usize) -> Result<(), &'static str> {
         let page_size = self.page_size();
-        let page = address.0/page_size;
+        let page = address.0 / page_size;
         let aligned_address = VirtualAddress(page * page_size);
         let offset = address.0 - aligned_address.0;
         let pages = (offset + size).div_ceil(page_size);

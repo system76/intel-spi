@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 
 extern crate coreboot_fs;
-extern crate libc;
 extern crate intel_spi;
+extern crate libc;
 
 use coreboot_fs::Rom;
 use intel_spi::Spi;
@@ -12,7 +12,11 @@ use std::{env, fs, process};
 #[path = "../examples/util/mod.rs"]
 mod util;
 
-fn copy_region(region: intelflash::RegionKind, old_data: &[u8], new_data: &mut [u8]) -> Result<bool, String> {
+fn copy_region(
+    region: intelflash::RegionKind,
+    old_data: &[u8],
+    new_data: &mut [u8],
+) -> Result<bool, String> {
     let old_opt = intelflash::Rom::new(old_data)?.get_region_base_limit(region)?;
     let new_opt = intelflash::Rom::new(new_data)?.get_region_base_limit(region)?;
 
@@ -22,25 +26,33 @@ fn copy_region(region: intelflash::RegionKind, old_data: &[u8], new_data: &mut [
     }
 
     let old = match old_opt {
-        Some((base, limit)) => if base < limit && limit < old_data.len() {
-            &old_data[base..limit + 1]
-        } else {
-            return Err(format!("old region {:#X}:{:#X} is invalid", base, limit));
-        },
+        Some((base, limit)) => {
+            if base < limit && limit < old_data.len() {
+                &old_data[base..limit + 1]
+            } else {
+                return Err(format!("old region {:#X}:{:#X} is invalid", base, limit));
+            }
+        }
         None => return Err("missing old region".to_string()),
     };
 
     let new = match new_opt {
-        Some((base, limit)) => if base < limit && limit < new_data.len() {
-            &mut new_data[base..limit + 1]
-        } else {
-            return Err(format!("new region {:#X}:{:#X} is invalid", base, limit));
-        },
+        Some((base, limit)) => {
+            if base < limit && limit < new_data.len() {
+                &mut new_data[base..limit + 1]
+            } else {
+                return Err(format!("new region {:#X}:{:#X} is invalid", base, limit));
+            }
+        }
         None => return Err("missing new region".to_string()),
     };
 
     if old.len() != new.len() {
-        return Err(format!("old region size {} does not match new region size {}", old.len(), new.len()));
+        return Err(format!(
+            "old region size {} does not match new region size {}",
+            old.len(),
+            new.len()
+        ));
     }
 
     new.copy_from_slice(old);
@@ -77,14 +89,16 @@ fn main() {
     {
         let rom = Rom::new(&new);
         if let Some(fmap) = rom.fmap() {
-            let name: String = fmap.name.iter().take_while(|&&b| b != 0).map(|&b| b as char).collect();
+            let name: String =
+                fmap.name.iter().take_while(|&&b| b != 0).map(|&b| b as char).collect();
 
             eprintln!("  {}", name);
 
             for i in 0..fmap.nareas {
                 let area = fmap.area(i);
 
-                let name: String = area.name.iter().take_while(|&&b| b != 0).map(|&b| b as char).collect();
+                let name: String =
+                    area.name.iter().take_while(|&&b| b != 0).map(|&b| b as char).collect();
 
                 eprintln!("    {}: {}", i, name);
 
@@ -130,14 +144,16 @@ fn main() {
     {
         let rom = Rom::new(&data);
         if let Some(fmap) = rom.fmap() {
-            let name: String = fmap.name.iter().take_while(|&&b| b != 0).map(|&b| b as char).collect();
+            let name: String =
+                fmap.name.iter().take_while(|&&b| b != 0).map(|&b| b as char).collect();
 
             eprintln!("  {}", name);
 
             for i in 0..fmap.nareas {
                 let area = fmap.area(i);
 
-                let name: String = area.name.iter().take_while(|&&b| b != 0).map(|&b| b as char).collect();
+                let name: String =
+                    area.name.iter().take_while(|&&b| b != 0).map(|&b| b as char).collect();
 
                 eprintln!("    {}: {}", i, name);
 
@@ -162,9 +178,7 @@ fn main() {
                 new_offset,
                 new_size / 1024
             );
-            let new_slice = new.get_mut(
-                new_offset .. new_offset + new_size
-            ).unwrap();
+            let new_slice = new.get_mut(new_offset..new_offset + new_size).unwrap();
 
             if let Some(area) = areas.get(area_name) {
                 let offset = area.offset as usize;
@@ -175,17 +189,12 @@ fn main() {
                     new_offset,
                     new_size / 1024
                 );
-                let slice = data.get(
-                    offset .. offset + size
-                ).unwrap();
+                let slice = data.get(offset..offset + size).unwrap();
 
                 if slice.len() == new_slice.len() {
                     new_slice.copy_from_slice(slice);
 
-                    eprintln!(
-                        "{}: copied from old firmware to new firmware",
-                        area_name
-                    );
+                    eprintln!("{}: copied from old firmware to new firmware", area_name);
                 } else {
                     eprintln!(
                         "{}: old firmware size {} does not match new firmware size {}, not copying",
@@ -195,16 +204,10 @@ fn main() {
                     );
                 }
             } else {
-                eprintln!(
-                    "{}: found in new firmware, but not found in old firmware",
-                    area_name
-                );
+                eprintln!("{}: found in new firmware, but not found in old firmware", area_name);
             }
         } else if areas.contains_key(area_name) {
-            eprintln!(
-                "{}: found in old firmware, but not found in new firmware",
-                area_name
-            );
+            eprintln!("{}: found in old firmware, but not found in new firmware", area_name);
         }
     }
 
@@ -228,9 +231,9 @@ fn main() {
                 }
             }
 
-            if ! matching {
+            if !matching {
                 spi.erase(i).unwrap();
-                if ! erased {
+                if !erased {
                     spi.write(i, new_chunk).unwrap();
                 }
             }
@@ -259,7 +262,8 @@ fn main() {
             data.extend_from_slice(&buf[..read]);
 
             while address < data.len() {
-                assert!(data[address] == new[address],
+                assert!(
+                    data[address] == new[address],
                     "\nverification failed as {:#x}: {:#x} != {:#x}",
                     address,
                     data[address],
