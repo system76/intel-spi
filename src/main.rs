@@ -200,7 +200,7 @@ fn main() {
                     area_name
                 );
             }
-        } else if areas.get(area_name).is_some() {
+        } else if areas.contains_key(area_name) {
             eprintln!(
                 "{}: found in old firmware, but not found in new firmware",
                 area_name

@@ -65,13 +65,13 @@ impl<'m, M: Mapper> SpiDev<'m, M> {
     pub unsafe fn new(mcfg: &[u8], mapper: &'m mut M) -> Result<Self, &'static str> {
         let pcie_base =
             (mcfg[0x2c] as usize) |
-            (mcfg[0x2d] as usize) << 8 |
-            (mcfg[0x2e] as usize) << 16 |
-            (mcfg[0x2f] as usize) << 24 |
-            (mcfg[0x30] as usize) << 32 |
-            (mcfg[0x31] as usize) << 40 |
-            (mcfg[0x32] as usize) << 48 |
-            (mcfg[0x33] as usize) << 56;
+            ((mcfg[0x2d] as usize) << 8) |
+            ((mcfg[0x2e] as usize) << 16) |
+            ((mcfg[0x2f] as usize) << 24) |
+            ((mcfg[0x30] as usize) << 32) |
+            ((mcfg[0x31] as usize) << 40) |
+            ((mcfg[0x32] as usize) << 48) |
+            ((mcfg[0x33] as usize) << 56);
 
         let mut phys_opt = None;
         {
@@ -84,37 +84,37 @@ impl<'m, M: Mapper> SpiDev<'m, M> {
                 (pcie_dev << 15) |
                 (pcie_func << 12)
             );
-            let pcie_virt = mapper.map(pcie_phys, pcie_size)?;
+            let pcie_virt = unsafe { mapper.map(pcie_phys, pcie_size)? };
             {
-                let pcie_space = slice::from_raw_parts_mut(pcie_virt.0 as *mut u8, pcie_size);
+                let pcie_space = unsafe { slice::from_raw_parts_mut(pcie_virt.0 as *mut u8, pcie_size) };
 
                 let vendor_id =
                     (pcie_space[0x00] as u16) |
-                    (pcie_space[0x01] as u16) << 8;
+                    ((pcie_space[0x01] as u16) << 8);
                 let product_id =
                     (pcie_space[0x02] as u16) |
-                    (pcie_space[0x03] as u16) << 8;
+                    ((pcie_space[0x03] as u16) << 8);
                 for known_id in PCI_IDS.iter() {
                     if known_id.0 == vendor_id && known_id.1 == product_id {
                         let bar0 =
                             (pcie_space[0x10] as u32) |
-                            (pcie_space[0x11] as u32) << 8 |
-                            (pcie_space[0x12] as u32) << 16 |
-                            (pcie_space[0x13] as u32) << 24;
+                            ((pcie_space[0x11] as u32) << 8) |
+                            ((pcie_space[0x12] as u32) << 16) |
+                            ((pcie_space[0x13] as u32) << 24);
                         phys_opt = Some(PhysicalAddress(bar0 as usize));
                         break;
                     }
                 }
             }
-            mapper.unmap(pcie_virt, pcie_size)?;
+            unsafe { mapper.unmap(pcie_virt, pcie_size)? };
         }
 
         let phys = match phys_opt {
             Some(some) => some,
             None => return Err("no supported SPI device found"),
         };
-        let virt = mapper.map(phys, mem::size_of::<SpiRegs>())?;
-        let regs = &mut *(virt.0 as *mut SpiRegs);
+        let virt = unsafe { mapper.map(phys, mem::size_of::<SpiRegs>())? };
+        let regs = unsafe { &mut *(virt.0 as *mut SpiRegs) };
 
         Ok(Self {
             mapper,
@@ -123,7 +123,7 @@ impl<'m, M: Mapper> SpiDev<'m, M> {
     }
 }
 
-impl<'m, M: Mapper> Spi for SpiDev<'m, M> {
+impl<M: Mapper> Spi for SpiDev<'_, M> {
     fn len(&mut self) -> Result<usize, SpiError> {
         self.regs.len()
     }
@@ -141,7 +141,7 @@ impl<'m, M: Mapper> Spi for SpiDev<'m, M> {
     }
 }
 
-impl<'m, M: Mapper> Drop for SpiDev<'m, M> {
+impl<M: Mapper> Drop for SpiDev<'_, M> {
     fn drop(&mut self) {
         let virt = VirtualAddress(self.regs as *mut SpiRegs as usize);
         let _ = unsafe { self.mapper.unmap(virt, mem::size_of::<SpiRegs>()) };

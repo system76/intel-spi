@@ -2,7 +2,7 @@
 name = "intel-spi"
 version = "0.1.7"
 authors = ["Jeremy Soller <jeremy@system76.com>"]
-edition = "2021"
+edition = "2024"
 description = "Library for accessing Intel PCH SPI"
 license = "MIT"
 
